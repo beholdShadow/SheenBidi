@@ -17,6 +17,10 @@
 #ifndef _SHEEN_BIDI_H
 #define _SHEEN_BIDI_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "SBAlgorithm.h"
 #include "SBBase.h"
 #include "SBBidiType.h"
@@ -29,5 +33,9 @@
 #include "SBRun.h"
 #include "SBScript.h"
 #include "SBScriptLocator.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

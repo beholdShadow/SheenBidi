@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(SheenBidi VERSION 2.8 LANGUAGES C CXX)
-
-include(CTest)
+project(SheenBidi VERSION 2.8 LANGUAGES C)
 
 option(ENABLE_CODECOVERAGE "Instrument code for code coverage (only enabled with BUILD_TESTING)" OFF)
-
+option(BUILDING_GENERATOR "" OFF)
 set(ASAN $<CONFIG:Debug> CACHE STRING "Enable address sanitizer" )
 set(UBSAN $<CONFIG:Debug> CACHE STRING "Enable undefined behaviour sanitizer")
 
@@ -46,12 +44,8 @@ set(_public_headers
   Headers/SheenBidi.h
 )
 
-add_library(sheenbidi_unity OBJECT
-  Source/SheenBidi.c
-)
-target_compile_definitions(sheenbidi_unity PUBLIC SB_CONFIG_UNITY)
 
-add_library(sheenbidi_non_unity OBJECT
+add_library(sheenbidi STATIC
   Source/BidiChain.c
   Source/BidiTypeLookup.c
   Source/BracketQueue.c
@@ -72,60 +66,54 @@ add_library(sheenbidi_non_unity OBJECT
   Source/ScriptStack.c
   Source/StatusStack.c
 )
-foreach(_target sheenbidi_unity sheenbidi_non_unity)
+foreach(_target sheenbidi)
   target_include_directories(${_target} PUBLIC Headers)
   target_include_directories(${_target} PRIVATE Source)
   add_sanitizers(${_target})
 endforeach()
 
-add_library(sheenbidi)
-target_include_directories(sheenbidi PUBLIC
-  $<INSTALL_INTERFACE:include/SheenBidi>
-)
-set(_is_unity $<NOT:$<CONFIG:Debug>>)
-target_link_libraries(sheenbidi PUBLIC
-  $<BUILD_INTERFACE:$<IF:${_is_unity},sheenbidi_unity,sheenbidi_non_unity>>
-)
 set_target_properties(sheenbidi PROPERTIES PUBLIC_HEADER "${_public_headers}")
-add_library(SheenBidi::sheenbidi ALIAS sheenbidi)
-add_sanitizers(sheenbidi)
 
-add_library(
-  parser
-  Tools/Parser/BidiBrackets.cpp
-  Tools/Parser/BidiCharacterTest.cpp
-  Tools/Parser/BidiMirroring.cpp
-  Tools/Parser/BidiTest.cpp
-  Tools/Parser/DerivedBidiClass.cpp
-  Tools/Parser/PropertyValueAliases.cpp
-  Tools/Parser/Scripts.cpp
-  Tools/Parser/UnicodeData.cpp
-  Tools/Parser/UnicodeVersion.cpp
-)
-target_include_directories(parser PUBLIC Tools)
-target_link_libraries(parser PUBLIC sheenbidi)
-add_sanitizers(parser)
+set_target_properties(sheenbidi PROPERTIES PREFIX "")
 
-add_executable(
-  generator
-  Tools/Generator/main.cpp
-  Tools/Generator/BidiTypeLookupGenerator.cpp
-  Tools/Generator/GeneralCategoryLookupGenerator.cpp
-  Tools/Generator/PairingLookupGenerator.cpp
-  Tools/Generator/ScriptLookupGenerator.cpp
-  Tools/Generator/Utilities/ArrayBuilder.cpp
-  Tools/Generator/Utilities/BidiClassDetector.cpp
-  Tools/Generator/Utilities/Converter.cpp
-  Tools/Generator/Utilities/FileBuilder.cpp
-  Tools/Generator/Utilities/GeneralCategoryDetector.cpp
-  Tools/Generator/Utilities/Math.cpp
-  Tools/Generator/Utilities/ScriptDetector.cpp
-  Tools/Generator/Utilities/StreamBuilder.cpp
-  Tools/Generator/Utilities/TextBuilder.cpp
-)
-target_include_directories(generator PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(generator PUBLIC parser sheenbidi)
-add_sanitizers(generator)
+if (BUILDING_GENERATOR)
+  add_library(
+    parser
+    Tools/Parser/BidiBrackets.cpp
+    Tools/Parser/BidiCharacterTest.cpp
+    Tools/Parser/BidiMirroring.cpp
+    Tools/Parser/BidiTest.cpp
+    Tools/Parser/DerivedBidiClass.cpp
+    Tools/Parser/PropertyValueAliases.cpp
+    Tools/Parser/Scripts.cpp
+    Tools/Parser/UnicodeData.cpp
+    Tools/Parser/UnicodeVersion.cpp
+  )
+  target_include_directories(parser PUBLIC Tools)
+  target_link_libraries(parser PUBLIC sheenbidi)
+  add_sanitizers(parser)
+
+  add_executable(
+    generator
+    Tools/Generator/main.cpp
+    Tools/Generator/BidiTypeLookupGenerator.cpp
+    Tools/Generator/GeneralCategoryLookupGenerator.cpp
+    Tools/Generator/PairingLookupGenerator.cpp
+    Tools/Generator/ScriptLookupGenerator.cpp
+    Tools/Generator/Utilities/ArrayBuilder.cpp
+    Tools/Generator/Utilities/BidiClassDetector.cpp
+    Tools/Generator/Utilities/Converter.cpp
+    Tools/Generator/Utilities/FileBuilder.cpp
+    Tools/Generator/Utilities/GeneralCategoryDetector.cpp
+    Tools/Generator/Utilities/Math.cpp
+    Tools/Generator/Utilities/ScriptDetector.cpp
+    Tools/Generator/Utilities/StreamBuilder.cpp
+    Tools/Generator/Utilities/TextBuilder.cpp
+  )
+  target_include_directories(generator PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_libraries(generator PUBLIC parser sheenbidi)
+  add_sanitizers(generator)
+endif()
 
 if(BUILD_TESTING)
   add_executable(
@@ -159,52 +147,9 @@ if(BUILD_TESTING)
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       message(WARNING "Codecoverage not supported with MSVC")
     else()
-      target_compile_options(sheenbidi_non_unity PUBLIC --coverage)
-      target_link_options(sheenbidi_non_unity PUBLIC --coverage)
+      target_compile_options(sheenbidi PUBLIC --coverage)
+      target_link_options(sheenbidi PUBLIC --coverage)
     endif()
   endif()
 endif()
 
-install(
-  TARGETS sheenbidi
-  EXPORT SheenBidiTargets
-  PUBLIC_HEADER
-  CONFIGURATIONS Release
-  DESTINATION include/SheenBidi
-)
-
-if(NOT DEFINED LIB_INSTALL_DIR)
-  set(LIB_INSTALL_DIR lib)
-endif()
-set(ConfigPackageLocation "${LIB_INSTALL_DIR}/cmake/SheenBidi")
-
-include(CMakePackageConfigHelpers)
-configure_package_config_file(SheenBidi.cmake.in
-  "${CMAKE_CURRENT_BINARY_DIR}/SheenBidi/SheenBidiConfig.cmake"
-  INSTALL_DESTINATION ${ConfigPackageLocation})
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/SheenBidi/SheenBidiConfigVersion.cmake"
-  VERSION ${SheenBidi_VERSION}
-  COMPATIBILITY AnyNewerVersion
-)
-
-export(EXPORT SheenBidiTargets
-  FILE "${CMAKE_CURRENT_BINARY_DIR}/SheenBidi/SheenBidiTargets.cmake"
-  NAMESPACE SheenBidi::
-)
-
-install(EXPORT SheenBidiTargets
-  FILE
-    SheenBidiTargets.cmake
-  NAMESPACE
-    SheenBidi::
-  DESTINATION
-    ${ConfigPackageLocation}
-)
-install(
-  FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/SheenBidi/SheenBidiConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/SheenBidi/SheenBidiConfigVersion.cmake"
-  DESTINATION
-    ${ConfigPackageLocation}
-)

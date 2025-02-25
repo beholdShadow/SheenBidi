@@ -4,6 +4,7 @@ project(SheenBidi VERSION 2.8 LANGUAGES C)
 
 option(ENABLE_CODECOVERAGE "Instrument code for code coverage (only enabled with BUILD_TESTING)" OFF)
 option(BUILDING_GENERATOR "" OFF)
+option(HAVE_SANITIZERS "" OFF)
 set(ASAN $<CONFIG:Debug> CACHE STRING "Enable address sanitizer" )
 set(UBSAN $<CONFIG:Debug> CACHE STRING "Enable undefined behaviour sanitizer")
 
@@ -69,7 +70,9 @@ add_library(sheenbidi STATIC
 foreach(_target sheenbidi)
   target_include_directories(${_target} PUBLIC Headers)
   target_include_directories(${_target} PRIVATE Source)
+if (HAVE_SANITIZERS)
   add_sanitizers(${_target})
+endif()
 endforeach()
 
 set_target_properties(sheenbidi PROPERTIES PUBLIC_HEADER "${_public_headers}")

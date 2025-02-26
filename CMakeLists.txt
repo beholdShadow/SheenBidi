@@ -9,7 +9,7 @@ set(ASAN $<CONFIG:Debug> CACHE STRING "Enable address sanitizer" )
 set(UBSAN $<CONFIG:Debug> CACHE STRING "Enable undefined behaviour sanitizer")
 
 # C++ is only used for testing tools.
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 
